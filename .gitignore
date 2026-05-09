@@ -1,0 +1,21 @@
+# Data files
+*.csv
+*.tsv
+*.xlsx
+*.xls
+
+# Generated figures and binary artifacts
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# R session files
+*.RData
+*.Rhistory
+
+# Temporary office files
+~$*
+
+# OS files
+.DS_Store
