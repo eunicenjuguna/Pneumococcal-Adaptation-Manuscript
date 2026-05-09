@@ -9,6 +9,7 @@
 *.jpg
 *.jpeg
 *.pdf
+*.svg
 
 # R session files
 *.RData

@@ -87,12 +87,19 @@ custom_colors <- c(
   "NVT_Post" = "darkblue"
 )
 
+group_labels <- c(
+  "VT_Pre" = "VT Pre",
+  "VT_Post" = "VT Post",
+  "NVT_Pre" = "NVT Pre",
+  "NVT_Post" = "NVT Post"
+)
+
 # Create bar plot
 bar_plot <- ggplot(counts_all, aes(x = Percentage, y = Serotype, fill = Group)) +
   geom_col(position = "dodge") +
   scale_y_discrete(limits = serotype_order) +
   labs(x = "Percentage", y = "Serotype", title = "Prevalence") +
-  scale_fill_manual(values = custom_colors, name = "Group") +
+  scale_fill_manual(values = custom_colors, labels = group_labels, name = "Group") +
   theme_minimal(base_size = 12) +
   theme(
     legend.position = "top",
@@ -127,13 +134,24 @@ forest_plot <- ggplot(results, aes(x = odds_ratio, y = Serotype)) +
     axis.title.x = element_text(size = 16, face = "bold", color = "black"),
     axis.title.y = element_text(size = 16, face = "bold", color = "black"),
     axis.text = element_text(size = 14, face = "bold", color = "black"),
-    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 16)
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 16),
+    plot.margin = margin(5, 0, 5, 5)
   ) +
-  scale_color_manual(values = c("VT" = "darkgray", "NVT" = "steelblue")) +
-  geom_text(aes(x = ci_upper * 1.2, label = stars), color = "maroon", size = 7)
+  scale_color_manual(values = c("VT" = "darkgray", "NVT" = "steelblue"), name = "vaccine type")
+
+star_plot <- ggplot(
+  results %>%
+    filter(stars != "") %>%
+    mutate(Serotype = factor(Serotype, levels = serotype_order)),
+  aes(x = 1, y = Serotype, label = stars)
+) +
+  geom_text(color = "maroon", size = 7, fontface = "bold") +
+  scale_y_discrete(limits = serotype_order) +
+  theme_void() +
+  theme(plot.margin = margin(35, 5, 5, 0))
 
 # Combine plots side by side with patchwork
-combined_plot <- bar_plot + forest_plot + plot_layout(widths = c(1, 1))
+combined_plot <- bar_plot + forest_plot + star_plot + plot_layout(widths = c(1, 1, 0.15))
 print(combined_plot)
 ggsave("combined_plot.svg", plot = combined_plot, width = 12, height = 8, units = "in", dpi = 300)
 
@@ -264,7 +282,7 @@ bar_plot <- ggplot(counts_all_sig, aes(x = Percentage, y = Serotype, fill = Grou
   geom_col(position = "dodge") +
   scale_y_discrete(limits = serotype_order_sig) +
   labs(x = "Percentage", y = "Serotype", title = "Prevalence of Significant Serotypes") +
-  scale_fill_manual(values = custom_colors, name = "Group") +
+  scale_fill_manual(values = custom_colors, labels = group_labels, name = "Group") +
   theme_minimal(base_size = 12) +
   theme(
     legend.position = "top",
@@ -281,7 +299,7 @@ forest_plot <- ggplot(results_sig %>% mutate(Serotype = factor(Serotype, levels 
                       aes(x = odds_ratio, y = Serotype)) +
   geom_point(aes(color = vaccine_type), size = 3) +
   geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper), height = 0.3) +
-  geom_vline(xinterceptx = 1, linetype = "dashed") +
+  geom_vline(xintercept = 1, linetype = "dashed") +
   scale_x_log10(
     breaks = c(0.1, 1, 10, 100),
     labels = c("1e-01", "1e+00", "1e+01", "1e+02")
@@ -294,15 +312,26 @@ forest_plot <- ggplot(results_sig %>% mutate(Serotype = factor(Serotype, levels 
     axis.title.x = element_text(size = 16, face = "bold", color = "black"),
     axis.title.y = element_text(size = 16, face = "bold", color = "black"),
     axis.text = element_text(size = 14, face = "bold", color = "black"),
-    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 16)
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 16),
+    plot.margin = margin(5, 0, 5, 5)
   ) +
-  scale_color_manual(values = c("VT" = "darkgray", "NVT" = "steelblue")) +
-  geom_text(aes(x = ci_upper * 1.2, label = stars), color = "maroon", size = 7)
+  scale_color_manual(values = c("VT" = "darkgray", "NVT" = "steelblue"), name = "vaccine type")
+
+star_plot <- ggplot(
+  results_sig %>%
+    filter(stars != "") %>%
+    mutate(Serotype = factor(Serotype, levels = serotype_order_sig)),
+  aes(x = 1, y = Serotype, label = stars)
+) +
+  geom_text(color = "maroon", size = 7, fontface = "bold") +
+  scale_y_discrete(limits = serotype_order_sig) +
+  theme_void() +
+  theme(plot.margin = margin(35, 5, 5, 0))
 
 # ================================
 # Combine plots
 # ================================
-combined_plot <- bar_plot + forest_plot + plot_layout(widths = c(1, 1))
+combined_plot <- bar_plot + forest_plot + star_plot + plot_layout(widths = c(1, 1, 0.15))
 print(combined_plot)
 ggsave("significant_serotypes_plot.svg", plot = combined_plot, width = 12, height = 8, units = "in", dpi = 300)
 
@@ -313,4 +342,3 @@ significant_serotypes <- results_sig %>%
   select(Serotype, vaccine_type, Pre, Post, odds_ratio, ci_lower, ci_upper, fisher_p, p_adj, stars)
 
 write_xlsx(significant_serotypes, path = "significant_carriage_serotypes.xlsx")
-
