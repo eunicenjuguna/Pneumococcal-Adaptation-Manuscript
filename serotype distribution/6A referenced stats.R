@@ -153,7 +153,7 @@ star_plot <- ggplot(
 # Combine plots side by side with patchwork
 combined_plot <- bar_plot + forest_plot + star_plot + plot_layout(widths = c(1, 1, 0.15))
 print(combined_plot)
-ggsave("combined_plot.svg", plot = combined_plot, width = 12, height = 8, units = "in", dpi = 300)
+ggsave("combined_plot.png", plot = combined_plot, width = 12, height = 8, units = "in", dpi = 300)
 
 
 # Filter significant serotypes
@@ -286,10 +286,10 @@ bar_plot <- ggplot(counts_all_sig, aes(x = Percentage, y = Serotype, fill = Grou
   theme_minimal(base_size = 12) +
   theme(
     legend.position = "top",
-    axis.title.x = element_text(size = 16, face = "bold", color = "black"),
-    axis.title.y = element_text(size = 16, face = "bold", color = "black"),
-    axis.text = element_text(size = 14, face = "bold", color = "black"),
-    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 16)
+    axis.title.x = element_text(size = 14, face = "bold", color = "black"),
+    axis.title.y = element_text(size = 14, face = "bold", color = "black"),
+    axis.text = element_text(size = 20, face = "bold", color = "black"),
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 14)
   )
 
 # ================================
@@ -309,10 +309,10 @@ forest_plot <- ggplot(results_sig %>% mutate(Serotype = factor(Serotype, levels 
   theme_minimal() +
   theme(
     legend.position = "top",
-    axis.title.x = element_text(size = 16, face = "bold", color = "black"),
-    axis.title.y = element_text(size = 16, face = "bold", color = "black"),
-    axis.text = element_text(size = 14, face = "bold", color = "black"),
-    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 16),
+    axis.title.x = element_text(size = 14, face = "bold", color = "black"),
+    axis.title.y = element_text(size = 14, face = "bold", color = "black"),
+    axis.text = element_text(size = 20, face = "bold", color = "black"),
+    plot.title = element_text(hjust = 0.5, face = "bold", color = "black", size = 14),
     plot.margin = margin(5, 0, 5, 5)
   ) +
   scale_color_manual(values = c("VT" = "darkgray", "NVT" = "steelblue"), name = "vaccine type")
@@ -333,7 +333,7 @@ star_plot <- ggplot(
 # ================================
 combined_plot <- bar_plot + forest_plot + star_plot + plot_layout(widths = c(1, 1, 0.15))
 print(combined_plot)
-ggsave("significant_serotypes_plot.svg", plot = combined_plot, width = 12, height = 8, units = "in", dpi = 300)
+ggsave("significant_serotypes_plot.png", plot = combined_plot, width = 12, height = 8, units = "in", dpi = 300)
 
 # ================================
 # Export significant serotypes to Excel
