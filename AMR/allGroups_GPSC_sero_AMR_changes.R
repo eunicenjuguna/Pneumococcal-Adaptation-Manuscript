@@ -132,8 +132,17 @@ antibiotic_order <- c(
   "CLI", "DOX", "TET", "CFX", "PEN"
 )
 
+group_order <- c("carriage", "disease")
+antibiotic_display_levels <- rev(antibiotic_order)
+plot_font_family <- "Arial"
+base_font_size <- 12
+plot_title_size <- 14
+
 stats_full <- stats_full %>%
-  mutate(Antibiotic = factor(Antibiotic, levels = antibiotic_order)) %>%
+  mutate(
+    Antibiotic = factor(Antibiotic, levels = antibiotic_display_levels),
+    Group = factor(Group, levels = group_order)
+  ) %>%
   arrange(Group, Antibiotic)
 
 # -----------------------------
@@ -142,24 +151,8 @@ stats_full <- stats_full %>%
 plot_data <- amr_summary %>%
   mutate(
     Proportion = Resistant / Total * 100,
-    Antibiotic = factor(Antibiotic, levels = antibiotic_order)
-  )
-
-sig_data <- stats_full %>%
-  mutate(
-    star = case_when(
-      p_adj < 0.001 ~ "***",
-      p_adj < 0.01  ~ "**",
-      p_adj < 0.05  ~ "*",
-      TRUE          ~ NA_character_
-    )
-  ) %>%
-  filter(!is.na(star)) %>%
-  left_join(
-    plot_data %>%
-      group_by(Group, Antibiotic) %>%
-      summarise(y_pos = max(Proportion) + 5, .groups = "drop"),
-    by = c("Group", "Antibiotic")
+    Antibiotic = factor(Antibiotic, levels = antibiotic_display_levels),
+    Group = factor(Group, levels = group_order)
   )
 
 # -----------------------------
@@ -167,28 +160,30 @@ sig_data <- stats_full %>%
 # -----------------------------
 bar_plot <- ggplot(
   plot_data,
-  aes(x = Antibiotic, y = Proportion, fill = Period)
+  aes(x = Proportion, y = Antibiotic, fill = Period)
 ) +
-  geom_bar(stat = "identity", position = position_dodge(0.8)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
   facet_wrap(~ Group, ncol = 1) +
-  geom_text(
-    data = sig_data,
-    aes(x = Antibiotic, y = y_pos, label = star),
-    inherit.aes = FALSE,
-    size = 5,
-    fontface = "bold"
-  ) +
   scale_fill_manual(values = c("pre" = "grey70", "post" = "grey30")) +
-  theme_minimal() +
+  scale_y_discrete(limits = antibiotic_display_levels, drop = FALSE) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
+  theme_minimal(base_family = plot_font_family, base_size = base_font_size) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
-    strip.text  = element_text(face = "bold"),
+    text = element_text(family = plot_font_family, face = "bold", color = "black"),
+    plot.title = element_text(size = plot_title_size, face = "bold"),
+    axis.title.x = element_text(size = base_font_size, face = "bold"),
+    axis.title.y = element_text(size = base_font_size, face = "bold"),
+    axis.text.x = element_text(size = base_font_size, face = "bold"),
+    axis.text.y = element_text(size = base_font_size, face = "bold"),
+    strip.text = element_text(size = base_font_size, face = "bold"),
+    legend.title = element_text(size = base_font_size, face = "bold"),
+    legend.text = element_text(size = base_font_size, face = "bold"),
     legend.position = "top"
   ) +
   labs(
     title = "Antibiotic Resistance Pre- and Post-PCV10",
-    x = "Antibiotic",
-    y = "Proportion Resistant (%)",
+    x = "Proportion Resistant (%)",
+    y = "Antibiotic",
     fill = "Period"
   )
 
@@ -210,15 +205,16 @@ write_xlsx(
 )
 
 forest_data <- stats_full %>%
-  filter(!is.na(OR_round)) %>%
+  filter(!is.na(OR_increase)) %>%
   mutate(
-    Antibiotic = factor(Antibiotic, levels = antibiotic_order)
+    Antibiotic = factor(Antibiotic, levels = antibiotic_display_levels),
+    Group = factor(Group, levels = group_order)
   )
 forest_data <- forest_data %>%
   mutate(
-    OR_plot = ifelse(OR_round < 1, 1 / OR_round, OR_round),
-    CI_low_plot = ifelse(OR_round < 1, 1 / CI_inc_high, CI_inc_low),
-    CI_high_plot = ifelse(OR_round < 1, 1 / CI_inc_low, CI_inc_high),
+    OR_plot = OR_increase,
+    CI_low_plot = CI_inc_low,
+    CI_high_plot = CI_inc_high,
     
     # stars for significance
     star = case_when(
@@ -229,32 +225,67 @@ forest_data <- forest_data %>%
     )
   )
 
-forest_plot <- ggplot(forest_data,
-                      aes(x = Antibiotic, y = OR_plot)) +
-  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40") +
-  geom_errorbar(aes(ymin = CI_low_plot, ymax = CI_high_plot), width = 0.2) +
+finite_hi <- forest_data$CI_high_plot[is.finite(forest_data$CI_high_plot)]
+finite_hi <- finite_hi[!is.na(finite_hi)]
+
+x_cap <- max(finite_hi) * 1.15
+star_x <- max(finite_hi) * 1.35
+x_limit <- max(finite_hi) * 1.7
+
+forest_data <- forest_data %>%
+  mutate(
+    OR_plot_disp = if_else(is.finite(OR_plot), OR_plot, x_cap),
+    CI_low_disp = pmax(CI_low_plot, 0.05),
+    CI_high_disp = if_else(is.finite(CI_high_plot), CI_high_plot, x_cap)
+  )
+
+forest_star_data <- forest_data %>%
+  filter(!is.na(star)) %>%
+  mutate(
+    Antibiotic = factor(Antibiotic, levels = antibiotic_display_levels),
+    Group = factor(Group, levels = group_order)
+  )
+
+forest_plot <- ggplot(forest_data, aes(x = OR_plot_disp, y = Antibiotic)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
+  geom_errorbarh(aes(xmin = CI_low_disp, xmax = CI_high_disp), height = 0.2) +
   geom_point(size = 3) +
-  geom_text(aes(label = star, y = CI_high_plot * 1.15),
-            na.rm = TRUE, size = 4, fontface = "bold") +
-  scale_y_log10(
+  geom_text(
+    data = forest_star_data,
+    aes(x = star_x, y = Antibiotic, label = star),
+    inherit.aes = FALSE,
+    hjust = 0,
+    size = 4,
+    fontface = "bold"
+  ) +
+  scale_y_discrete(limits = antibiotic_display_levels, drop = FALSE) +
+  scale_x_log10(
     breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10, 50),
-    limits = c(0.05, 50)
+    limits = c(0.05, x_limit)
   ) +
   facet_wrap(~ Group, ncol = 1) +
-  theme_minimal() +
+  coord_cartesian(clip = "off") +
+  theme_minimal(base_family = plot_font_family, base_size = base_font_size) +
   theme(
-    strip.text = element_text(face = "bold"),
-    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold")
+    text = element_text(family = plot_font_family, face = "bold", color = "black"),
+    plot.title = element_text(size = plot_title_size, face = "bold"),
+    axis.title.x = element_text(size = base_font_size, face = "bold"),
+    axis.title.y = element_text(size = base_font_size, face = "bold"),
+    axis.text.x = element_text(size = base_font_size, face = "bold"),
+    axis.text.y = element_text(size = base_font_size, face = "bold"),
+    strip.text = element_text(size = base_font_size, face = "bold"),
+    plot.margin = margin(10, 60, 10, 10)
   ) +
   labs(
-    x = "Antibiotic",
-    y = "Odds Ratio (↑ resistance post-PCV10, log scale)",
+    x = "Odds Ratio (↑ resistance post-PCV10, log scale)",
+    y = "Antibiotic",
     title = "Change in Antibiotic Resistance Post-PCV10"
   )
 
+combined_plot <- bar_plot + forest_plot +
+  plot_layout(widths = c(1.2, 1))
 
-forest_plot
-bar_plot
+combined_plot
 
 
 library(tidyverse)
@@ -453,5 +484,3 @@ serotype_sig_carriage <- serotype_stats_carriage %>% filter(significant)
 # 6️⃣ Export to Excel
 # -----------------------------
 write_xlsx( serotype_sig_carriage,"Serotype_sig_increase_in_sig_GPSCs.xlsx")
-
-
